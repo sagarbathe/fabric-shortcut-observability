@@ -1,0 +1,24 @@
+{
+  "observability_workspace_name": "<FILL-IN: name of the workspace that hosts these notebooks and the observability lakehouse>",
+  "observability_lakehouse_name": "ObservabilityLH",
+
+  "monitored_workspaces": [
+    "<FILL-IN: e.g. Sales-Prod-Workspace>"
+  ],
+
+  "tables": {
+    "bronze": "bronze_onelake_raw_events",
+    "dim_shortcuts": "dim_shortcut_map",
+    "silver": "silver_onelake_enriched_access"
+  },
+
+  "ingestion": {
+    "lookback_hours": 6,
+    "diagnostics_root_path": "Files/DiagnosticLogs/OneLake"
+  },
+
+  "fabric_api": {
+    "base_url": "https://api.fabric.microsoft.com/v1",
+    "token_audience": "pbi"
+  }
+}
