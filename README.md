@@ -27,7 +27,8 @@ Workspace N (other target lakehouses) ┘            │
               │  Lakehouse: ObservabilityLH                       │
               │   ├── bronze_onelake_raw_events     (Delta)       │
               │   ├── dim_shortcut_map              (Delta)       │
-              │   └── silver_onelake_enriched_access (Delta)      │
+              │   ├── silver_onelake_enriched_access (Delta)      │
+              │   └── gold_onelake_enriched_access   (Delta)      │
               │  Notebooks:                                       │
               │   01_setup                                        │
               │   02_bronze_union_diagnostics                     │
@@ -49,8 +50,8 @@ Workspace N (other target lakehouses) ┘            │
 5. **Attach the observability lakehouse as the default lakehouse on every notebook.** In each of the five notebooks (`01_setup` … `05_gold_queries`): open the notebook → in the **Lakehouses** pane on the left, click **Add** → **Existing lakehouse** → pick `ObservabilityLH` (the one named in `observability_lakehouse_name`) → set it as the **default** (pin/star icon). All `spark.table(...)` and `saveAsTable(...)` calls in the notebooks resolve against the default lakehouse, so this step is required — there is no API to set it programmatically today.
 6. Upload [config.json](config.json) to the observability lakehouse at `Files/config.json` (or attach it to each notebook as a notebook resource under `builtin/config.json`).
 7. Run `01_setup.ipynb` once to create the Delta tables.
-8. Schedule `02`, `03`, `04` hourly via a Fabric Data Pipeline (in this order).
-9. Use `05_gold_queries.ipynb` (or attach the SQL analytics endpoint to Power BI) for dashboards.
+8. Schedule `02`, `03`, `04`, `05` hourly via a Fabric Data Pipeline (in this order). `05` rebuilds the `gold_onelake_enriched_access` aggregate table that the sample queries use.
+9. Attach the SQL analytics endpoint of `ObservabilityLH` to Power BI for dashboards (or run the sample queries in `05_gold_queries.ipynb` directly).
 
 ## What you get
 
@@ -59,10 +60,18 @@ For every read/copy of a shortcut-backed file, a row in `silver_onelake_enriched
 - `executingUPN`, `executingPrincipalType`, `callerIPAddress`
 - `accessStartTime`, `originatingApp` (azcopy / Spark / Pipeline / Storage Explorer / …)
 - `operationName`, `operationCategory`
-- `shortcut_path_consumer` (path in Lakehouse A)
+- `shortcut_path_consumer` (full OneLake path the consumer hit, including `_delta_log`/parquet files)
 - `target_workspace_name`, `target_item_name`, `target_path` (resolved Lakehouse B coords)
 - `target_type` (`OneLake` | `AdlsGen2` | `S3` | `GCS` | `AzureBlob` | `Dataverse` | …)
 - `correlationId` (join key to Spark / Warehouse engine logs)
+
+### `gold_onelake_enriched_access`
+
+OneLake diagnostics is **per-file**: a single logical SELECT or COPY can produce dozens of silver rows (one per `_delta_log` entry, per parquet file, per stats file). The **05_gold_queries** notebook collapses silver to one row per unique logical operation by `GROUP BY` on the user/operation/timestamp/target dimensions, and adds:
+
+- `shortcut_consumer_path` — the user-meaningful path (`Tables/<table>` or `Files/<folder>`) extracted from `shortcut_path_consumer`, so you can group/filter by the table being touched without the underlying `_delta_log/...` noise.
+
+Use `gold_onelake_enriched_access` for dashboards and ad-hoc analysis; use `silver_onelake_enriched_access` only when you need raw per-file granularity.
 
 ## Separating reads (SELECT) from copies
 
@@ -106,7 +115,7 @@ Legacy shape `[{ "workspace_name": "..." }]` is still accepted by the notebooks 
 
 | Key | Purpose |
 |---|---|
-| `tables.bronze` / `tables.dim_shortcuts` / `tables.silver` | Delta table names. Change only if you have a naming convention. |
+| `tables.bronze` / `tables.dim_shortcuts` / `tables.silver` | Delta table names. Change only if you have a naming convention. The gold aggregate table (`gold_onelake_enriched_access`) is created directly by `05_gold_queries.ipynb`. |
 | `ingestion.lookback_hours` | How many hours back the bronze notebook scans diagnostic JSON on each run. See **Tuning `lookback_hours`** below. |
 | `ingestion.diagnostics_root_path` | Folder layout under each diagnostics lakehouse. The OneLake diagnostics feature writes to `Files/DiagnosticLogs/OneLake/Workspaces/<wsId>/y=…/m=…/d=…/h=…/m=…/PT1H.json`. Don't change unless Microsoft alters the layout. |
 | `fabric_api.base_url` | Fabric REST endpoint (`https://api.fabric.microsoft.com/v1`). |
