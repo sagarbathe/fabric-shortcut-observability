@@ -1,8 +1,10 @@
 # Fabric Shortcut Access Observability
 
-End-to-end scaffold to track **who copied what shortcut-backed table from a Fabric Lakehouse, when, from where, and what the real underlying source was**.
+Provides an end-to-end Fabric-native solution to track and explain:
 
-Built entirely on native Fabric capabilities:
+  -  Who accessed or copied shortcut-backed data, when, from where, and the true underlying source.**.
+
+  -  Built entirely on native Fabric capabilities:
 
 | Layer | Native capability |
 |---|---|
