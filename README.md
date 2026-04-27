@@ -75,7 +75,7 @@ Use `gold_onelake_enriched_access` for dashboards and ad-hoc analysis; use `silv
 
 ## Separating reads (SELECT) from copies
 
-OneLake diagnostics records the underlying storage-API operation, not the SQL/Spark statement. Two columns on `silver_onelake_enriched_access` let you split user intent:
+OneLake diagnostics records the underlying storage-API operation, not the SQL/Spark statement. Two columns on `gold_onelake_enriched_access` let you split user intent:
 
 - `operationCategory` — coarse bucket: `Read` / `Write` / `Delete` / `Other`.
 - `operationName` — exact storage op: `GetBlob`, `ReadFile`, `PutBlob`, `PutBlobFromURL`, `CopyBlob`, `AbortCopyBlob`, `DeleteBlob`, …
@@ -85,18 +85,18 @@ Combined with `originatingApp` (azcopy / Spark / Storage Explorer / pipeline / �
 ```sql
 -- 1) Reads (SELECT-class: Spark reads, T-SQL SELECT, DirectLake refresh, lakehouse preview)
 SELECT *
-FROM   silver_onelake_enriched_access
+FROM   gold_onelake_enriched_access
 WHERE  operationCategory = 'Read'
   AND  operationName NOT IN ('PutBlobFromURL','CopyBlob');
 
 -- 2) Server-side copies (highest-signal exfiltration events)
 SELECT *
-FROM   silver_onelake_enriched_access
+FROM   gold_onelake_enriched_access
 WHERE  operationName IN ('PutBlobFromURL','CopyBlob','AbortCopyBlob');
 
 -- 3) External-tool downloads (azcopy, Storage Explorer, rclone, curl, custom scripts)
 SELECT *
-FROM   silver_onelake_enriched_access
+FROM   gold_onelake_enriched_access
 WHERE  operationCategory = 'Read'
   AND  originatingApp RLIKE '(?i)(azcopy|storage.explorer|rclone|curl|python-requests)';
 ```
